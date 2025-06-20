@@ -1,0 +1,19 @@
+# ninja log v6
+0	5345	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/ball_query_gpu.o	1d049cb5ff2c7312
+1	5349	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/group_points_gpu.o	cc80ab7db323e38e
+1	5371	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/interpolate_gpu.o	bad9b2bcd595da1d
+1	5507	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/sampling_gpu.o	d9cc6b22a611d832
+0	8670	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/ball_query.o	ad8391491b0fa19a
+1	8895	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/sampling.o	75f6c682e451344f
+1	8978	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/interpolate.o	b77bcfd2eaad6014
+0	11058	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/bindings.o	efe50514fabb709d
+0	13671	1734618578486146546	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/group_points.o	2b177a07f1b8b85
+17	5233	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/ball_query_gpu.o	7f19fc62fed54d07
+17	5233	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/group_points_gpu.o	89c30841083af162
+18	5237	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/interpolate_gpu.o	31309e1c4edea6b4
+19	5382	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/sampling_gpu.o	ce2707cd231e491
+16	8679	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/ball_query.o	7f759f5acaac2119
+17	15691	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/group_points.o	fb7553fa26bed265
+18	15787	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/sampling.o	cfd5becdc8fd59bd
+17	15861	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/interpolate.o	a003a8a8e41b3fda
+17	19170	1734768661248826903	/home/qiuyu/MaskPoint/extensions/pointnet2/build/temp.linux-x86_64-cpython-38/_ext_src/src/bindings.o	7988217730546483

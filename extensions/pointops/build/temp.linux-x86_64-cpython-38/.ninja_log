@@ -1,0 +1,11 @@
+# ninja log v6
+0	2881	1734618593867275312	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/knnquery/knnquery_cuda.o	5506d91e737aafa4
+0	2893	1734618593867275312	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda.o	23f454c6167f221c
+0	7010	1734618593867275312	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/knnquery/knnquery_cuda_kernel.o	8cc0c865191b71ff
+1	7166	1734618593871275602	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda_kernel.o	e2ddd350075ac2ec
+0	9867	1734618593867275312	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/pointops_api.o	367a31510f67dfa1
+2	2865	1734768682213059676	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/knnquery/knnquery_cuda.o	a3e7e9fc009e51bd
+3	2873	1734768682213059676	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda.o	d6740b99af9040de
+2	6992	1734768682213059676	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/knnquery/knnquery_cuda_kernel.o	f16e89ca5b427d7c
+3	7139	1734768682213059676	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda_kernel.o	f5bccaf33422d6e6
+2	9797	1734768682213059676	/home/qiuyu/MaskPoint/extensions/pointops/build/temp.linux-x86_64-cpython-38/src/pointops_api.o	9a76fe5d75560e15

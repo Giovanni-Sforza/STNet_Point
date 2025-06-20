@@ -1,0 +1,10 @@
+STNet_test*
+STNet_all*
+STNet_d*
+STNet_part*
+finetunin*
+contra_data*
+training_output**
+*.txt
+*.png
+*test*
