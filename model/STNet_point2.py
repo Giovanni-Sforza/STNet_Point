@@ -439,15 +439,15 @@ class Point_Classifier_Head(nn.Module):
     def __init__(self, in_channel: int, num_class: int):
         super(Point_Classifier_Head, self).__init__()
         self.mlp_head = nn.Sequential(
-            nn.Linear(in_channel, 256, bias=False),
+            nn.Linear(in_channel, 128, bias=False),
             #nn.BatchNorm1d(512),
             #nn.ReLU(inplace=True),
             #nn.Dropout(0.3),
             #nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
+            nn.BatchNorm1d(128),
             TeLU(),
             nn.Dropout(0.3),
-            nn.Linear(256, num_class)
+            nn.Linear(128, num_class)
         )
 
     def forward(self, global_feature_vector: torch.Tensor) -> torch.Tensor:
@@ -536,7 +536,7 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         """_, rt3_global = self.sa_fusion3(l3_xyz_A, rt3); rt4_global = rt4"""
         rt3_global = rt3
         # --- SFF-inspired Global Feature Interaction ---
-        new_rt0_global = self.gff0(target_feat=rt1_global, context_feat=rt3_global)
+        new_rt0_global = self.gff0(target_feat=rt0_global, context_feat=rt3_global)
         new_rt1_global = self.gff1(target_feat=rt1_global, context_feat=rt3_global)
         new_rt2_global = self.gff2(target_feat=rt2_global, context_feat=rt3_global)
         #new_rt3_global = self.gff3(target_feat=rt3_global, context_feat=rt4_global)

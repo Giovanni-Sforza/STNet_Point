@@ -590,7 +590,7 @@ def get_finetune_config():
         },
         "training": {
             "max_iter": 3000000, "log_freq": 50, "val_freq": 3000,
-            "output_dir": "./STNet_all_afterdebug_v3_3abstraction_4class", # CHANGE THIS FOR DIFFERENT RUNS
+            "output_dir": "./STNet_all_afterdebug_v5_3abstraction_4class", # CHANGE THIS FOR DIFFERENT RUNS
             "clean_log_dir_on_start": True,
             "pretrained_backbone_checkpoint": None,#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
             "resume_from_spt_checkpoint":None, # e.g., "spt_latest.pth" to resume finetuning
