@@ -161,18 +161,18 @@ class FullDualPathAttentionTFF(nn.Module):
         featA_norm = self.norm_input(featA.transpose(1, 2)).transpose(1, 2)
         
         dist_matrix = torch.cdist(xyz_A, xyz_B, p=2)
-        #spatial_bias = self.spatial_bias_mlp(-dist_matrix.unsqueeze(1))
+        spatial_bias = self.spatial_bias_mlp(-dist_matrix.unsqueeze(1))
         
         # 相似性通道计算
         q_A_sim = self.q_proj(featA_norm).view(B, self.num_heads, self.head_dim, N).permute(0, 1, 3, 2)
         k_B_sim = self.k_proj(featB).view(B, self.num_heads, self.head_dim, N).permute(0, 1, 3, 2)
-        sim_scores = torch.matmul(q_A_sim, k_B_sim.transpose(-2, -1)) / (self.head_dim ** 0.5) #+ spatial_bias
+        sim_scores = torch.matmul(q_A_sim, k_B_sim.transpose(-2, -1)) / (self.head_dim ** 0.5) + spatial_bias
         
         # 差异性通道计算
         q_A_dissim = self.q_proj_dissim(featA_norm)
         k_B_dissim = self.k_proj_dissim(featB)
         feat_dist_matrix = torch.cdist(q_A_dissim.transpose(1, 2), k_B_dissim.transpose(1, 2), p=2)
-        dissim_scores = feat_dist_matrix.unsqueeze(1) #+ spatial_bias
+        dissim_scores = feat_dist_matrix.unsqueeze(1) + spatial_bias
         
         # 返回所有需要的值
         return featA_norm, self.v_proj(featB), sim_scores, dissim_scores
@@ -348,6 +348,136 @@ class SparseDualPathAttentionTFF(nn.Module): # 建议改名
         return output
 
 
+class GlobalFeatureDualAttention(nn.Module):
+    """
+    一个专门用于融合全局特征的双通道注意力模块。
+
+    该模块移除了所有空间坐标依赖，使其适用于处理像PointNet++输出的
+    全局特征向量。它包含两个并行的注意力路径：
+    1. 相似性通道：基于标准的缩放点积注意力，捕捉特征的相似性。
+    2. 差异性通道：基于特征间的L2距离，显式地捕捉特征的差异性。
+    
+    输入是两个特征张量，通常形状为 (Batch, Channels, 1)。
+    """
+    def __init__(self, 
+                 in_channel: int, 
+                 out_channel: int, 
+                 num_heads: int = 8):
+        """
+        Args:
+            in_channel (int): 输入特征的通道数。
+            out_channel (int): 输出特征的通道数。
+            num_heads (int): 注意力头的数量。
+        """
+        super().__init__() # Corrected super call
+        
+        assert in_channel % num_heads == 0, "in_channel 必须能被 num_heads 整除"
+        
+        self.in_channel = in_channel
+        self.out_channel = out_channel
+        self.num_heads = num_heads
+        self.head_dim = in_channel // num_heads
+
+        # --- 通用层 ---
+        self.q_proj = nn.Conv1d(in_channel, in_channel, 1, bias=False)
+        self.k_proj = nn.Conv1d(in_channel, in_channel, 1, bias=False)
+        self.v_proj = nn.Conv1d(in_channel, in_channel, 1, bias=False)
+        
+        # --- 差异性通道专用投影 ---
+        self.q_proj_dissim = nn.Conv1d(in_channel, in_channel, 1, bias=False)
+        self.k_proj_dissim = nn.Conv1d(in_channel, in_channel, 1, bias=False)
+
+        # --- 归一化层 ---
+        self.norm_input = nn.LayerNorm(in_channel)
+        self.norm_sim = nn.LayerNorm(in_channel)
+        self.norm_dissim = nn.LayerNorm(in_channel)
+
+        # --- 融合与输出 ---
+        self.fusion_mlp = nn.Sequential(
+            nn.Conv1d(in_channel * 3, in_channel * 2, 1, bias=False),
+            nn.BatchNorm1d(in_channel * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.1),
+            nn.Conv1d(in_channel * 2, out_channel, 1)
+        )
+        
+        # 残差连接
+        if in_channel == out_channel:
+            self.residual_proj = nn.Identity()
+        else:
+            self.residual_proj = nn.Conv1d(in_channel, out_channel, 1)
+
+    def _calculate_scores(self, featA: torch.Tensor, featB: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        私有方法，计算两种注意力分数。
+        """
+        B, C, N = featA.shape # N 预期为 1
+        
+        featA_norm = self.norm_input(featA.transpose(1, 2)).transpose(1, 2)
+        
+        # --- 相似性通道计算 (Standard Attention) ---
+        q_A_sim = self.q_proj(featA_norm).view(B, self.num_heads, self.head_dim, N).permute(0, 1, 3, 2)
+        k_B_sim = self.k_proj(featB).view(B, self.num_heads, self.head_dim, N).permute(0, 1, 3, 2)
+        sim_scores = torch.matmul(q_A_sim, k_B_sim.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        
+        # --- 差异性通道计算 (Feature Distance) ---
+        # 按照您的澄清，直接使用L2距离，不取负值。
+        # softmax会给距离大的（更不相似）特征分配更高的权重。
+        q_A_dissim = self.q_proj_dissim(featA_norm)
+        k_B_dissim = self.k_proj_dissim(featB)
+        
+        feat_dist_matrix = torch.cdist(q_A_dissim.transpose(1, 2), k_B_dissim.transpose(1, 2), p=2)
+        
+        # 扩展到多头，使其与 sim_scores 形状一致
+        dissim_scores = feat_dist_matrix.unsqueeze(1).repeat(1, self.num_heads, 1, 1)
+        
+        return featA_norm, self.v_proj(featB), sim_scores, dissim_scores
+
+    def forward(self, featA: torch.Tensor, featB: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            featA (torch.Tensor): 第一个全局特征 (Query), 形状 (B, C, 1).
+            featB (torch.Tensor): 第二个全局特征 (Key, Value), 形状 (B, C, 1).
+            
+        Returns:
+            torch.Tensor: 融合后的特征，形状 (B, out_channel, 1).
+        """
+        B, C, N = featA.shape
+        
+        featA_norm, v_B_raw, sim_scores, dissim_scores = self._calculate_scores(featA, featB)
+        
+        sim_weights = F.softmax(sim_scores, dim=-1)
+        dissim_weights = F.softmax(dissim_scores, dim=-1)
+        
+        v_B = v_B_raw.view(B, self.num_heads, self.head_dim, N).permute(0, 1, 3, 2)
+        
+        context_sim = torch.matmul(sim_weights, v_B)
+        context_sim = context_sim.permute(0, 2, 1, 3).contiguous().view(B, N, C)
+        context_sim = self.norm_sim(context_sim).transpose(1, 2)
+        
+        context_dissim = torch.matmul(dissim_weights, v_B)
+        context_dissim = context_dissim.permute(0, 2, 1, 3).contiguous().view(B, N, C)
+        context_dissim = self.norm_dissim(context_dissim).transpose(1, 2)
+
+        fused_feat = self.fusion_mlp(
+            torch.cat([featA_norm, context_sim, context_dissim], dim=1)
+        )
+        
+        output = fused_feat + self.residual_proj(featA)
+        
+        return output
+
+    def get_attention_maps(self, featA: torch.Tensor, featB: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """返回两种注意力的权重图，用于分析。"""
+        _, _, sim_scores, dissim_scores = self._calculate_scores(featA, featB)
+        
+        sim_weights = F.softmax(sim_scores, dim=-1)
+        dissim_weights = F.softmax(dissim_scores, dim=-1)
+        
+        return sim_weights, dissim_weights
+    
+
+
 class SelfAttentionBlock_Point(nn.Module):
     """Self-Attention Block for Point Cloud Features."""
     def __init__(self, key_in_channels, query_in_channels, transform_channels, out_channels):
@@ -499,7 +629,8 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         self.daf1 = FullDualPathAttentionTFF(channel_list[1], output_dim,4)
         self.daf2 = FullDualPathAttentionTFF(channel_list[2], output_dim,4)
         #self.daf3 = FullDualPathAttentionTFF(channel_list[2], output_dim,4)
-        self.tff3 = TFF_Point(channel_list[3], output_dim)
+        #self.tff3 = TFF_Point(channel_list[3], output_dim)
+        self.tff3 = GlobalFeatureDualAttention(channel_list[3], output_dim,8)
         # === 3. Global Pooling & Fusion Modules ===
         self.sa_fusion0 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
         self.sa_fusion1 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
@@ -562,7 +693,7 @@ def create_model(config):
     if model_name == 'STNet_Point':
         model = STNet_Point_Classifier_Advanced(
             input_feature_dim=config.get('input_feature_dim', 2), # Use a clearer name
-            output_dim=config.get('output_dim', 1024),
+            output_dim=config.get('output_dim', 512),
             num_class=config.get('num_class', 4),
             feature_out=config.get('feature_out', False),
         )
@@ -579,7 +710,7 @@ if __name__ == '__main__':
     NUM_POINTS = 800 # As per your requirement
     BATCH_SIZE = 4
     INPUT_FEAT_DIM = 2 
-    output_dim = 1024 # A smaller intermediate channel size for a deeper network
+    output_dim = 512 # A smaller intermediate channel size for a deeper network
 
     # --- Model Initialization ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

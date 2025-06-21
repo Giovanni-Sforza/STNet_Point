@@ -553,12 +553,12 @@ def get_finetune_config():
         "finetune_data": { # Data specific to this fine-tuning task
             "s1_event_dir": "contra_data_clean_noipad/data_view1",
             "s2_event_dir": "contra_data_clean_noipad/data_view1",
-            "train1_split_file": "contra_data_clean_noipad/fine_train_Zr copy 2.txt",
-            "train2_split_file": "contra_data_clean_noipad/fine_train_Ru copy 2.txt",
-            "val1_split_file": "contra_data_clean_noipad/fine_test_Zr copy 2.txt", # Added from your prev request
-            "val2_split_file": "contra_data_clean_noipad/fine_test_Ru copy 2.txt", # Added from your prev request
+            "train1_split_file": "contra_data_clean_noipad/fine_train_Zr copy.txt",
+            "train2_split_file": "contra_data_clean_noipad/fine_train_Ru copy.txt",
+            "val1_split_file": "contra_data_clean_noipad/fine_test_Zr copy.txt", # Added from your prev request
+            "val2_split_file": "contra_data_clean_noipad/fine_test_Ru copy.txt", # Added from your prev request
             "use_shared_mask_from_s1": False,
-            "batch_size": 64,
+            "batch_size": 32,
             "num_workers": 0, # Start with 0 for debugging
         },
         # Config for SPT model instance to be created by create_model
@@ -590,9 +590,9 @@ def get_finetune_config():
         },
         "training": {
             "max_iter": 3000000, "log_freq": 50, "val_freq": 3000,
-            "output_dir": "./STNet_all_afterdebug_v5_3abstraction_4class", # CHANGE THIS FOR DIFFERENT RUNS
+            "output_dir": "./STNet_all_afterdebug_v6_with_position_embedding_4class", # CHANGE THIS FOR DIFFERENT RUNS
             "clean_log_dir_on_start": True,
-            "pretrained_backbone_checkpoint": None,#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
+            "pretrained_backbone_checkpoint": "STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
             "resume_from_spt_checkpoint":None, # e.g., "spt_latest.pth" to resume finetuning
             "freeze_backbone_on_load": False, 
         }
