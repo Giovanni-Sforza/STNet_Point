@@ -584,15 +584,15 @@ def get_finetune_config():
         "spt_downstream": {
             "classification_mode": "13_class",  # "13_class" or "3_class"
         },
-        "optimizer": { "name": "AdamW", "lr": 1.0e-05, "weight_decay": 1.0e-06 }, # LR for fine-tuning
+        "optimizer": { "name": "AdamW", "lr": 1.0e-05, "weight_decay": 0.08 }, # LR for fine-tuning
         "finetune_scheduler": { # Scheduler for fine-tuning
             "name": "CosineAnnealingLR", "T_max": 3000000, "eta_min": 1e-7
         },
         "training": {
             "max_iter": 3000000, "log_freq": 100, "val_freq": 3000,
-            "output_dir": "./STNet_all_afterdebug_v8_with_position_embedding_global_attention_4class", # CHANGE THIS FOR DIFFERENT RUNS
+            "output_dir": "./STNet_3SA_v2_with_position_embedding_global_attention_4class", # CHANGE THIS FOR DIFFERENT RUNS
             "clean_log_dir_on_start": True,
-            "pretrained_backbone_checkpoint": None,#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
+            "pretrained_backbone_checkpoint": None,#"STNet_3SA_v1_with_position_embedding_global_attention_4class/checkpoints/spt_best_acc.pth",#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
             "resume_from_spt_checkpoint":None, # e.g., "spt_latest.pth" to resume finetuning
             "freeze_backbone_on_load": False, 
         }

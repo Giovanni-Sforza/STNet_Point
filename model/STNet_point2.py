@@ -610,8 +610,8 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         # 解释: 在更稀疏的点上（256个），用更大的半径(0.6)捕捉更大尺度结构。
         self.sa3 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[256, 256, 512])
         # 解释: 最后一层通常是全局抽象，聚合所有特征。
-        self.sa0 = PointnetSAModule(npoint=512, radius=0.2, nsample=16, mlp=[input_feature_dim, 32, 32, 64])
-        self.sa1 = PointnetSAModule(npoint=128, radius=0.25, nsample=32, mlp=[64, 64, 64, 128])
+        #self.sa0 = PointnetSAModule(npoint=512, radius=0.2, nsample=16, mlp=[input_feature_dim, 32, 32, 64])
+        self.sa1 = PointnetSAModule(npoint=128, radius=0.25, nsample=32, mlp=[input_feature_dim, 64, 64, 128])
         # 估算: r=0.4的球体积约0.268。期望点数 = 0.268 * 215 ≈ 57个。这下足够nsample=32了。
         self.sa2 = PointnetSAModule(npoint=32, radius=0.3, nsample=64, mlp=[128, 128, 256])
         # 解释: 在更稀疏的点上（256个），用更大的半径(0.6)捕捉更大尺度结构。
@@ -620,19 +620,19 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         channel_list = [64,128, 256, 512]
         # === 2. TFF Modules ===
         
-        self.tff1 = TFF_Point_SpatiallyAware(channel_list[0], output_dim, fp_mlp=[channel_list[0]]*3)
-        self.tff2 = TFF_Point_SpatiallyAware(channel_list[1], output_dim, fp_mlp=[channel_list[1]]*3)
+        #self.tff1 = TFF_Point_SpatiallyAware(channel_list[0], output_dim, fp_mlp=[channel_list[0]]*3)
+        #self.tff2 = TFF_Point_SpatiallyAware(channel_list[1], output_dim, fp_mlp=[channel_list[1]]*3)
         #self.tff3 = TFF_Point_SpatiallyAware(channel_list[2], output_dim, fp_mlp=[channel_list[2]]*3)
         #self.tff3 = TFF_Point(channel_list[2], output_dim)
 
-        self.daf0 = FullDualPathAttentionTFF(channel_list[0], output_dim,4)
+        #self.daf0 = FullDualPathAttentionTFF(channel_list[0], output_dim,4)
         self.daf1 = FullDualPathAttentionTFF(channel_list[1], output_dim,4)
         self.daf2 = FullDualPathAttentionTFF(channel_list[2], output_dim,4)
         #self.daf3 = FullDualPathAttentionTFF(channel_list[2], output_dim,4)
         #self.tff3 = TFF_Point(channel_list[3], output_dim)
         self.tff3 = GlobalFeatureDualAttention(channel_list[3], output_dim,8)
         # === 3. Global Pooling & Fusion Modules ===
-        self.sa_fusion0 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
+        #self.sa_fusion0 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
         self.sa_fusion1 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
         self.sa_fusion2 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
         #self.sa_fusion3 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[output_dim]*3)
@@ -640,10 +640,10 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         # SFF-inspired Global Feature Fusion Modules
         self.gff1 = GFF_Module(output_dim)
         self.gff2 = GFF_Module(output_dim)
-        self.gff0 = GFF_Module(output_dim)
+        #self.gff0 = GFF_Module(output_dim)
 
         # === 4. Final Classifier Head ===
-        classifier_in_channel = output_dim * 4
+        classifier_in_channel = output_dim * 3
         self.classifier = Point_Classifier_Head(classifier_in_channel, num_class)
 
         self.feature_out = feature_out
@@ -652,28 +652,28 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         xyz_A, feat_A = pcdA; xyz_B, feat_B = pcdB
 
         # --- Backbone ---
-        l0_xyz_A, l0_feat_A = self.sa0(xyz_A, feat_A)
-        l0_xyz_B, l0_feat_B = self.sa0(xyz_B, feat_B)
-        l1_xyz_A, l1_feat_A = self.sa1(l0_xyz_A, l0_feat_A); l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A); l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)#; l4_xyz_A, l4_feat_A = self.sa4(l3_xyz_A, l3_feat_A)
-        l1_xyz_B, l1_feat_B = self.sa1(l0_xyz_B, l0_feat_B); l2_xyz_B, l2_feat_B = self.sa2(l1_xyz_B, l1_feat_B); l3_xyz_B, l3_feat_B = self.sa3(l2_xyz_B, l2_feat_B)#; l4_xyz_B, l4_feat_B = self.sa4(l3_xyz_B, l3_feat_B)
+        #l0_xyz_A, l0_feat_A = self.sa0(xyz_A, feat_A)
+        #l0_xyz_B, l0_feat_B = self.sa0(xyz_B, feat_B)
+        l1_xyz_A, l1_feat_A = self.sa1(xyz_A, feat_A); l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A); l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)#; l4_xyz_A, l4_feat_A = self.sa4(l3_xyz_A, l3_feat_A)
+        l1_xyz_B, l1_feat_B = self.sa1(xyz_B, feat_B); l2_xyz_B, l2_feat_B = self.sa2(l1_xyz_B, l1_feat_B); l3_xyz_B, l3_feat_B = self.sa3(l2_xyz_B, l2_feat_B)#; l4_xyz_B, l4_feat_B = self.sa4(l3_xyz_B, l3_feat_B)
 
         # --- Temporal Fusion ---
         #rt1 = self.tff1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.tff2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3((l3_feat_A), ( l3_feat_B))#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
-        rt0 = self.daf0((l0_xyz_A, l0_feat_A), (l0_xyz_B, l0_feat_B))
+        #rt0 = self.daf0((l0_xyz_A, l0_feat_A), (l0_xyz_B, l0_feat_B))
         rt1 = self.daf1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.daf2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3(l3_feat_A, l3_feat_B)#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
         # --- Global Pooling ---
-        _, rt0_global = self.sa_fusion0(l0_xyz_A, rt0)
+        #_, rt0_global = self.sa_fusion0(l0_xyz_A, rt0)
         _, rt1_global = self.sa_fusion1(l1_xyz_A, rt1); _, rt2_global = self.sa_fusion2(l2_xyz_A, rt2)
         """_, rt3_global = self.sa_fusion3(l3_xyz_A, rt3); rt4_global = rt4"""
         rt3_global = rt3
         # --- SFF-inspired Global Feature Interaction ---
-        new_rt0_global = self.gff0(target_feat=rt0_global, context_feat=rt3_global)
+        #new_rt0_global = self.gff0(target_feat=rt0_global, context_feat=rt3_global)
         new_rt1_global = self.gff1(target_feat=rt1_global, context_feat=rt3_global)
         new_rt2_global = self.gff2(target_feat=rt2_global, context_feat=rt3_global)
         #new_rt3_global = self.gff3(target_feat=rt3_global, context_feat=rt4_global)
 
         # --- Final Concatenation ---
-        final_comparison_feature = torch.cat([new_rt0_global,new_rt1_global, new_rt2_global, rt3_global], dim=1)
+        final_comparison_feature = torch.cat([new_rt1_global, new_rt2_global, rt3_global], dim=1)
 
         # --- Classification ---
         # Reshape for Linear layer if needed
