@@ -660,7 +660,7 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         # --- Temporal Fusion ---
         #rt1 = self.tff1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.tff2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3((l3_feat_A), ( l3_feat_B))#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
         rt0 = self.daf0((l0_xyz_A, l0_feat_A), (l0_xyz_B, l0_feat_B))
-        rt1 = self.daf1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.daf2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3((l3_feat_A), ( l3_feat_B))#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
+        rt1 = self.daf1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.daf2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3(l3_feat_A, l3_feat_B)#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
         # --- Global Pooling ---
         _, rt0_global = self.sa_fusion0(l0_xyz_A, rt0)
         _, rt1_global = self.sa_fusion1(l1_xyz_A, rt1); _, rt2_global = self.sa_fusion2(l2_xyz_A, rt2)
