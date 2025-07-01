@@ -27,7 +27,7 @@ def point_conv1d_1x1(in_channel: int, out_channel: int, bn: bool = True) -> nn.M
         nn.Conv1d(in_channel, out_channel, 1, bias=not bn),
         nn.BatchNorm1d(out_channel) if bn else nn.Identity(),
         TeLU(),
-        nn.Dropout(0.3)
+        nn.Dropout(0.4)
     )
 
 
@@ -141,7 +141,7 @@ class FullDualPathAttentionTFF(nn.Module):
             nn.Conv1d(in_channel * 3, in_channel * 2, 1, bias=False),
             nn.BatchNorm1d(in_channel * 2),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.1),
+            nn.Dropout(0.3),
             nn.Conv1d(in_channel * 2, out_channel, 1)
         )
         
@@ -265,7 +265,7 @@ class SparseDualPathAttentionTFF(nn.Module): # 建议改名
             nn.Conv1d(in_channel * 3, in_channel * 2, 1, bias=False),
             nn.BatchNorm1d(in_channel * 2),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.1),
+            nn.Dropout(0.3),
             nn.Conv1d(in_channel * 2, out_channel, 1)
         )
         
@@ -576,7 +576,7 @@ class Point_Classifier_Head(nn.Module):
             #nn.Linear(512, 256),
             nn.BatchNorm1d(128),
             TeLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.4),
             nn.Linear(128, num_class)
         )
 
