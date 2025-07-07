@@ -25,7 +25,8 @@ from scipy.stats import mode as sp_mode
 from tqdm import tqdm
 
 try:
-    from utils.STNet_dataset import MemoryEfficientRandomPairedDataset , VotingPairedDataset
+    from utils.STNet_dataset import MemoryEfficientRandomPairedDataset , VotingPairedDataset,EpochShuffledPairedDataset
+
     # Import create_model and the model classes if needed for type hinting or direct instantiation
     #from utils.STNet_dataset2 import TrulyMemoryEfficientDataset
     from model.STNet_point2 import create_model
@@ -45,7 +46,7 @@ class FineTuningTrainer:
         self.config = config
         self.cur_device = torch.device(f"cuda:{config.gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"FineTuningTrainer: Using device: {self.cur_device}")
-        self.current_epoch = 23
+        self.current_epoch = 1
         self.current_iter = 0
         self.best_spt_accuracy = -1.0
         self.best_spt_loss = float('inf')
@@ -133,9 +134,9 @@ class FineTuningTrainer:
         logging.info(f"Fine-tuning TensorBoard logs: {self.log_dir}")
 
         data_cfg_section = config.get("finetune_data", config.finetune_data)
-        self.train_dataset = MemoryEfficientRandomPairedDataset(
-            root_dir_source1=data_cfg_section.s1_event_dir, root_dir_source2=data_cfg_section.s1_event_dir,
-            split_file_source1=data_cfg_section.train1_split_file, split_file_source2=data_cfg_section.train2_split_file,max_pairs_per_class=50000
+        self.train_dataset = EpochShuffledPairedDataset(
+            root_dir_ru=data_cfg_section.s1_event_dir, root_dir_zr=data_cfg_section.s1_event_dir,
+            split_file_ru=data_cfg_section.train1_split_file, split_file_zr=data_cfg_section.train2_split_file
         )
         self.train_data_loader = DataLoader(
             self.train_dataset, batch_size=data_cfg_section.batch_size, shuffle=True,
@@ -164,10 +165,9 @@ class FineTuningTrainer:
             )
         else:
             if data_cfg_section.get("val1_split_file") and data_cfg_section.get("val2_split_file"):
-                self.val_dataset = MemoryEfficientRandomPairedDataset(
-                    root_dir_source1=data_cfg_section.s1_event_dir, root_dir_source2=data_cfg_section.s1_event_dir,
-                    split_file_source1=data_cfg_section.val1_split_file, split_file_source2=data_cfg_section.val2_split_file,max_pairs_per_class=500,
-                    mode="test"
+                self.val_dataset = EpochShuffledPairedDataset(
+                    root_dir_ru=data_cfg_section.s1_event_dir, root_dir_zr=data_cfg_section.s1_event_dir,
+                    split_file_ru=data_cfg_section.val1_split_file, split_file_zr=data_cfg_section.val2_split_file
                 )
                 self.val_data_loader = DataLoader(
                     self.val_dataset, batch_size=data_cfg_section.batch_size, shuffle=False,
@@ -332,7 +332,7 @@ class FineTuningTrainer:
 
 
 
-    def _process_spt_batch(self, batch_dict):
+    '''def _process_spt_batch(self, batch_dict):
         # ... (代码分离 xyz, points 不变)
         coord_dim = self.config.spt_model_params.get('coord_dim',3)
         input_feature_dim = self.config.spt_model_params.get('input_feature_dim',0)
@@ -404,7 +404,54 @@ class FineTuningTrainer:
             print("!!!!!!!!!! WARNING: NaNs or Infs found in xyz2 !!!!!!!!!!")
         else:
             return xyz1.contiguous(), points1.permute(0,2,1).contiguous(),  xyz2.contiguous(), points2.permute(0,2,1).contiguous(),  task_labels
-    
+    '''
+    # In FineTuningTrainer._process_spt_batch
+
+    def _process_spt_batch(self, batch_dict):
+        # ... (xyz, points splitting code is the same) ...
+
+        # --- SLIGHT MODIFICATION TO HANDLE LABELS ---
+        # The labels from our new dataset are already the base class labels (e.g., 1,2,3,4)
+        # The old dataset had combined labels (e.g., 1-13, 14-26)
+        # We can make this logic robust to both.
+        
+        # Let's assume class_label1 and class_label2 are identical and are the base class IDs
+        task_labels = batch_dict['class_label1'].to(self.cur_device, non_blocking=True)
+        coord_dim = self.config.spt_model_params.get('coord_dim',3)
+        input_feature_dim = self.config.spt_model_params.get('input_feature_dim',0)
+
+        event1_data = batch_dict['event1'].to(self.cur_device, non_blocking=True)
+        xyz1 = event1_data[:, :, :coord_dim]
+        points1 = None
+
+        event2_data = batch_dict['event2'].to(self.cur_device, non_blocking=True)
+        xyz2 = event2_data[:, :, :coord_dim]
+        points2 = None
+        # In our new dataset, task_labels will be [0, 1, 2, 3]
+        # In the old dataset, it would be [1..26] and we would need the old logic.
+        # Since we are replacing the dataset, we can rely on the new format.
+        # The old logic was:
+        # original_labels_1_26 = batch_dict['class_label1'].to(self.cur_device, non_blocking=True)
+        # labels_0_12 = (original_labels_1_26 - 1) % 13 
+        # task_labels = labels_0_12
+        #
+        # With the new dataset, the label is already the 0-indexed class, so `task_labels` is correct as is.
+        # No change is needed here if your `num_class` is 4 and your labels are 0,1,2,3.
+        # If you were doing the 3-class mapping, that would still apply to `task_labels`.
+        
+        # ... (rest of the function, including _transfer, is the same) ...
+        
+        # Final check that the labels are what the model expects (e.g. 0 to num_classes-1)
+        # Your 'num_class' is 4, so your labels should be 0, 1, 2, 3.
+        # Our new dataset provides this, so it should work seamlessly.
+        
+        xyz1, cor1 = self._transfer(xyz1)
+        xyz2, cor2 = self._transfer(xyz2)
+        
+        points1 = cor1
+        points2 = cor2
+        # ...
+        return xyz1.contiguous(), points1.permute(0,2,1).contiguous(),  xyz2.contiguous(), points2.permute(0,2,1).contiguous(),  task_labels
     def _get_train_data_iterator(self):
         # This method is now simpler as the reshuffle logic is in _train_iter_spt
         if self.train_data_loader_iter is None:
@@ -429,9 +476,8 @@ class FineTuningTrainer:
             
             # 2. Call the shuffle_pairs method on the dataset with the new epoch number
             # This will generate a new set of random pairs for the next "epoch".
-            if self.train_dataset.sampling_strategy == 'random':
-                self.train_dataset.shuffle_pairs(epoch=self.current_epoch)
-            
+            self.train_dataset.create_epoch_pairs()
+            self.train_data_loader_iter = iter(self.train_data_loader)
             # 3. Create a new iterator from the dataloader.
             # The dataloader will now use the newly shuffled pairs from the dataset.
             self.train_data_loader_iter = iter(self.train_data_loader)
@@ -931,16 +977,16 @@ def get_finetune_config():
         },
         "training": {
             "max_iter": 3000000, "log_freq": 100, "val_freq": 10000,
-            "output_dir": "./STNet_novote_v2", # CHANGE THIS FOR DIFFERENT RUNS
+            "output_dir": "./STNet_epoch_novote_v1", # CHANGE THIS FOR DIFFERENT RUNS
             "clean_log_dir_on_start": True,
-            "pretrained_backbone_checkpoint": None,#"STNet_novote_v1/checkpoints/spt_latest.pth",#"STNet_3SA_v1_with_position_embedding_global_attention_4class/checkpoints/spt_best_acc.pth",#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
+            "pretrained_backbone_checkpoint": None,#"STNet_novote_v2/checkpoints/spt_latest.pth",#"STNet_novote_v1/checkpoints/spt_latest.pth",#"STNet_3SA_v1_with_position_embedding_global_attention_4class/checkpoints/spt_best_acc.pth",#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
             "resume_from_spt_checkpoint":None, # e.g., "spt_latest.pth" to resume finetuning
             "freeze_backbone_on_load": False, 
         },
         # --- 新增：投票验证配置 ---
         "validation_voting": {
             "enabled": False,  # 设置为 True 来启用投票验证
-            "num_votes": 30,  # 每个 source1 样本与多少个 source2 样本配对进行投票
+            "num_votes": 50,  # 每个 source1 样本与多少个 source2 样本配对进行投票
             "batch_size": 16, # 投票时内部处理的批次大小，以防显存不足
             "mega_batch_size": 1 
         }

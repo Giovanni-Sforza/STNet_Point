@@ -593,7 +593,7 @@ class Point_Classifier_Head(nn.Module):
 # 3.  STNet 
 # --------------------------------------------------------------------------
 class STNet_Point_Classifier_Advanced(nn.Module):
-    def __init__(self, num_class: int, output_dim: int = 64, input_feature_dim: int = 0, feature_out=False):
+    def __init__(self, num_class: int, output_dim: int = 64, input_feature_dim: int = 0, feature_out=False,pretrain=False):
         super(STNet_Point_Classifier_Advanced, self).__init__()
         self.output_dim = output_dim
 
@@ -646,46 +646,53 @@ class STNet_Point_Classifier_Advanced(nn.Module):
         classifier_in_channel = output_dim * 3
         self.classifier = Point_Classifier_Head(classifier_in_channel, num_class)
 
+        self.pretrain = pretrain
         self.feature_out = feature_out
 
-    def forward(self, pcdA: tuple, pcdB: tuple) -> torch.Tensor:
-        xyz_A, feat_A = pcdA; xyz_B, feat_B = pcdB
+    def forward(self, pcdA: tuple, pcdB: tuple=None) -> torch.Tensor:
+        
 
         # --- Backbone ---
         #l0_xyz_A, l0_feat_A = self.sa0(xyz_A, feat_A)
         #l0_xyz_B, l0_feat_B = self.sa0(xyz_B, feat_B)
-        l1_xyz_A, l1_feat_A = self.sa1(xyz_A, feat_A); l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A); l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)#; l4_xyz_A, l4_feat_A = self.sa4(l3_xyz_A, l3_feat_A)
-        l1_xyz_B, l1_feat_B = self.sa1(xyz_B, feat_B); l2_xyz_B, l2_feat_B = self.sa2(l1_xyz_B, l1_feat_B); l3_xyz_B, l3_feat_B = self.sa3(l2_xyz_B, l2_feat_B)#; l4_xyz_B, l4_feat_B = self.sa4(l3_xyz_B, l3_feat_B)
-
-        # --- Temporal Fusion ---
-        #rt1 = self.tff1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.tff2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3((l3_feat_A), ( l3_feat_B))#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
-        #rt0 = self.daf0((l0_xyz_A, l0_feat_A), (l0_xyz_B, l0_feat_B))
-        rt1 = self.daf1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.daf2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3(l3_feat_A, l3_feat_B)#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
-        # --- Global Pooling ---
-        #_, rt0_global = self.sa_fusion0(l0_xyz_A, rt0)
-        _, rt1_global = self.sa_fusion1(l1_xyz_A, rt1); _, rt2_global = self.sa_fusion2(l2_xyz_A, rt2)
-        """_, rt3_global = self.sa_fusion3(l3_xyz_A, rt3); rt4_global = rt4"""
-        rt3_global = rt3
-        # --- SFF-inspired Global Feature Interaction ---
-        #new_rt0_global = self.gff0(target_feat=rt0_global, context_feat=rt3_global)
-        new_rt1_global = self.gff1(target_feat=rt1_global, context_feat=rt3_global)
-        new_rt2_global = self.gff2(target_feat=rt2_global, context_feat=rt3_global)
-        #new_rt3_global = self.gff3(target_feat=rt3_global, context_feat=rt4_global)
-
-        # --- Final Concatenation ---
-        final_comparison_feature = torch.cat([new_rt1_global, new_rt2_global, rt3_global], dim=1)
-
-        # --- Classification ---
-        # Reshape for Linear layer if needed
-        if final_comparison_feature.dim() == 3:
-            final_comparison_feature = final_comparison_feature.squeeze(-1)
-
-        if self.feature_out:
-            return final_comparison_feature
+        if self.pretrain:
+            xyz_A, feat_A = pcdA
+            l1_xyz_A, l1_feat_A = self.sa1(xyz_A, feat_A); l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A); l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)
+            return l3_feat_A
         else: 
-            # 现在 final_comparison_feature 保证是 2D 的 [B, C]
-            logits = self.classifier(final_comparison_feature)
-            return logits
+            xyz_A, feat_A = pcdA; xyz_B, feat_B = pcdB
+            l1_xyz_A, l1_feat_A = self.sa1(xyz_A, feat_A); l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A); l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)#; l4_xyz_A, l4_feat_A = self.sa4(l3_xyz_A, l3_feat_A)
+            l1_xyz_B, l1_feat_B = self.sa1(xyz_B, feat_B); l2_xyz_B, l2_feat_B = self.sa2(l1_xyz_B, l1_feat_B); l3_xyz_B, l3_feat_B = self.sa3(l2_xyz_B, l2_feat_B)#; l4_xyz_B, l4_feat_B = self.sa4(l3_xyz_B, l3_feat_B)
+            
+            # --- Temporal Fusion ---
+            #rt1 = self.tff1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.tff2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3((l3_feat_A), ( l3_feat_B))#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
+            #rt0 = self.daf0((l0_xyz_A, l0_feat_A), (l0_xyz_B, l0_feat_B))
+            rt1 = self.daf1((l1_xyz_A, l1_feat_A), (l1_xyz_B, l1_feat_B)); rt2 = self.daf2((l2_xyz_A, l2_feat_A), (l2_xyz_B, l2_feat_B)); rt3 = self.tff3(l3_feat_A, l3_feat_B)#; rt4 = self.tff4(l4_feat_A, l4_feat_B)
+            # --- Global Pooling ---
+            #_, rt0_global = self.sa_fusion0(l0_xyz_A, rt0)
+            _, rt1_global = self.sa_fusion1(l1_xyz_A, rt1); _, rt2_global = self.sa_fusion2(l2_xyz_A, rt2)
+            """_, rt3_global = self.sa_fusion3(l3_xyz_A, rt3); rt4_global = rt4"""
+            rt3_global = rt3
+            # --- SFF-inspired Global Feature Interaction ---
+            #new_rt0_global = self.gff0(target_feat=rt0_global, context_feat=rt3_global)
+            new_rt1_global = self.gff1(target_feat=rt1_global, context_feat=rt3_global)
+            new_rt2_global = self.gff2(target_feat=rt2_global, context_feat=rt3_global)
+            #new_rt3_global = self.gff3(target_feat=rt3_global, context_feat=rt4_global)
+
+            # --- Final Concatenation ---
+            final_comparison_feature = torch.cat([new_rt1_global, new_rt2_global, rt3_global], dim=1)
+
+            # --- Classification ---
+            # Reshape for Linear layer if needed
+            if final_comparison_feature.dim() == 3:
+                final_comparison_feature = final_comparison_feature.squeeze(-1)
+
+            if self.feature_out:
+                return final_comparison_feature
+            else: 
+                # 现在 final_comparison_feature 保证是 2D 的 [B, C]
+                logits = self.classifier(final_comparison_feature)
+                return logits
 
 def create_model(config):
     """ Create model with given config, including coord_dim """
@@ -696,6 +703,7 @@ def create_model(config):
             output_dim=config.get('output_dim', 512),
             num_class=config.get('num_class', 4),
             feature_out=config.get('feature_out', False),
+            pretrain = config.get("pretrain",False)
         )
     return model
 

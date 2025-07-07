@@ -1,8 +1,8 @@
-STNet_test*
-STNet_all*
-STNet_d*
-STNet_part*
-finetunin*
+./STNet_test*/
+./STNet_all*/
+./STNet_d*/
+./STNet_part*/
+./finetunin*/
 contra_data*
 training_output**
 *.txt
@@ -12,3 +12,4 @@ root*
 *4class*
 STNet_*v*
 *copy.py
+moco*
