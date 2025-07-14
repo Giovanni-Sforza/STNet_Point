@@ -25,7 +25,7 @@ from scipy.stats import mode as sp_mode
 from tqdm import tqdm
 
 try:
-    from utils.STNet_dataset import MemoryEfficientRandomPairedDataset , VotingPairedDataset,EpochShuffledPairedDataset
+    from utils.STNet_dataset import MemoryEfficientRandomPairedDataset , VotingPairedDataset,EpochShuffledPairedDataset,MultiSamplePairedDataset
 
     # Import create_model and the model classes if needed for type hinting or direct instantiation
     #from utils.STNet_dataset2 import TrulyMemoryEfficientDataset
@@ -150,12 +150,12 @@ class FineTuningTrainer:
         if val_cfg.get("enabled"):
             # --- 使用新的投票数据集 ---
             logging.info("Voting validation enabled. Initializing VotingPairedDataset.")
-            self.val_dataset = VotingPairedDataset(
+            self.val_dataset = MultiSamplePairedDataset(
                 root_dir_source1=data_cfg_section.s1_event_dir,
                 root_dir_source2=data_cfg_section.s1_event_dir,
                 split_file_source1=data_cfg_section.val1_split_file,
                 split_file_source2=data_cfg_section.val2_split_file,
-                num_votes=val_cfg.get("num_votes", 50)
+                num_samples_per_s1=10
             )
             # 对于这个特殊的数据集，batch_size 必须是 1，因为每个样本返回的数据大小都不同
             self.val_data_loader = DataLoader(
@@ -293,6 +293,21 @@ class FineTuningTrainer:
                 logging.info("Checkpoint does not contain a model key, assuming the file is the state_dict itself.")
                 backbone_state_dict = pretrained_ckpt
                 
+            # --- DEBUGGING: 打印 sa3 相关的键名 ---
+            logging.info("--- [DEBUG] Keys in the Checkpoint (backbone_state_dict) for 'sa3' ---")
+            found_sa3_in_ckpt = False
+            for key in backbone_state_dict.keys():
+                if 'sa3' in key:
+                    logging.info(f"[CKPT] {key}")
+                    found_sa3_in_ckpt = True
+            if not found_sa3_in_ckpt:
+                logging.warning("[CKPT] No keys containing 'sa3' were found in the checkpoint's state_dict!")
+
+            logging.info("\n--- [DEBUG] Keys in the Current Model (self.spt_model) for 'sa3' ---")
+            for name, _ in self.spt_model.named_parameters():
+                if 'sa3' in name:
+                    logging.info(f"[MODEL] {name}")
+            # --- DEBUGGING END ---
             # --- 核心修改在这里 ---
             # 由于键名已经匹配，我们不再需要任何前缀处理
             # 直接将加载的 state_dict 加载到当前模型中
@@ -314,7 +329,7 @@ class FineTuningTrainer:
             if self.config.training.get("freeze_backbone_on_load", False):
                 # 假设主干网络是除了 'classifier' 之外的所有模块
                 # 这个列表你需要根据你的模型结构确认
-                backbone_modules_to_freeze = ['sa1', 'sa2', 'sa3', 'tff1', 'tff2', 'tff3', 'sa_fusion1', 'sa_fusion2', 'gff1', 'gff2']
+                backbone_modules_to_freeze = ['sa1', 'sa2', 'sa3']#, 'tff1', 'tff2', 'tff3', 'sa_fusion1', 'sa_fusion2', 'gff1', 'gff2']
                 logging.info(f"Freezing backbone parameters for modules: {backbone_modules_to_freeze}")
                 
                 frozen_count = 0
@@ -408,14 +423,8 @@ class FineTuningTrainer:
     # In FineTuningTrainer._process_spt_batch
 
     def _process_spt_batch(self, batch_dict):
-        # ... (xyz, points splitting code is the same) ...
 
-        # --- SLIGHT MODIFICATION TO HANDLE LABELS ---
-        # The labels from our new dataset are already the base class labels (e.g., 1,2,3,4)
-        # The old dataset had combined labels (e.g., 1-13, 14-26)
-        # We can make this logic robust to both.
-        
-        # Let's assume class_label1 and class_label2 are identical and are the base class IDs
+
         task_labels = batch_dict['class_label1'].to(self.cur_device, non_blocking=True)
         coord_dim = self.config.spt_model_params.get('coord_dim',3)
         input_feature_dim = self.config.spt_model_params.get('input_feature_dim',0)
@@ -427,30 +436,14 @@ class FineTuningTrainer:
         event2_data = batch_dict['event2'].to(self.cur_device, non_blocking=True)
         xyz2 = event2_data[:, :, :coord_dim]
         points2 = None
-        # In our new dataset, task_labels will be [0, 1, 2, 3]
-        # In the old dataset, it would be [1..26] and we would need the old logic.
-        # Since we are replacing the dataset, we can rely on the new format.
-        # The old logic was:
-        # original_labels_1_26 = batch_dict['class_label1'].to(self.cur_device, non_blocking=True)
-        # labels_0_12 = (original_labels_1_26 - 1) % 13 
-        # task_labels = labels_0_12
-        #
-        # With the new dataset, the label is already the 0-indexed class, so `task_labels` is correct as is.
-        # No change is needed here if your `num_class` is 4 and your labels are 0,1,2,3.
-        # If you were doing the 3-class mapping, that would still apply to `task_labels`.
-        
-        # ... (rest of the function, including _transfer, is the same) ...
-        
-        # Final check that the labels are what the model expects (e.g. 0 to num_classes-1)
-        # Your 'num_class' is 4, so your labels should be 0, 1, 2, 3.
-        # Our new dataset provides this, so it should work seamlessly.
+
         
         xyz1, cor1 = self._transfer(xyz1)
         xyz2, cor2 = self._transfer(xyz2)
         
         points1 = cor1
         points2 = cor2
-        # ...
+
         return xyz1.contiguous(), points1.permute(0,2,1).contiguous(),  xyz2.contiguous(), points2.permute(0,2,1).contiguous(),  task_labels
     def _get_train_data_iterator(self):
         # This method is now simpler as the reshuffle logic is in _train_iter_spt
@@ -976,16 +969,16 @@ def get_finetune_config():
             "name": "CosineAnnealingLR", "T_max": 3000000, "eta_min": 1e-7
         },
         "training": {
-            "max_iter": 3000000, "log_freq": 100, "val_freq": 10000,
-            "output_dir": "./STNet_epoch_novote_v1", # CHANGE THIS FOR DIFFERENT RUNS
+            "max_iter": 3000000, "log_freq": 100, "val_freq": 700,
+            "output_dir": "./STNet_Apre_novote_v3_test", # CHANGE THIS FOR DIFFERENT RUNS
             "clean_log_dir_on_start": True,
-            "pretrained_backbone_checkpoint": None,#"STNet_novote_v2/checkpoints/spt_latest.pth",#"STNet_novote_v1/checkpoints/spt_latest.pth",#"STNet_3SA_v1_with_position_embedding_global_attention_4class/checkpoints/spt_best_acc.pth",#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
+            "pretrained_backbone_checkpoint": "STNet_Apre_novote_v2/checkpoints/spt_latest.pth",#"STNet_novote_v2/checkpoints/spt_latest.pth",#"STNet_novote_v1/checkpoints/spt_latest.pth",#"STNet_3SA_v1_with_position_embedding_global_attention_4class/checkpoints/spt_best_acc.pth",#"STNet_all_afterdebug_v5_3abstraction_4class/checkpoints/spt_latest.pth",#"STNet_test_v8_3abstraction_4class/checkpoints/123latest.pth", # CRITICAL: Set actual path
             "resume_from_spt_checkpoint":None, # e.g., "spt_latest.pth" to resume finetuning
-            "freeze_backbone_on_load": False, 
+            "freeze_backbone_on_load": True, 
         },
         # --- 新增：投票验证配置 ---
         "validation_voting": {
-            "enabled": False,  # 设置为 True 来启用投票验证
+            "enabled": True,  # 设置为 True 来启用投票验证
             "num_votes": 50,  # 每个 source1 样本与多少个 source2 样本配对进行投票
             "batch_size": 16, # 投票时内部处理的批次大小，以防显存不足
             "mega_batch_size": 1 

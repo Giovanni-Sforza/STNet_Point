@@ -576,7 +576,7 @@ class Point_Classifier_Head(nn.Module):
             #nn.Linear(512, 256),
             nn.BatchNorm1d(128),
             TeLU(),
-            nn.Dropout(0.4),
+            nn.Dropout(0.5),
             nn.Linear(128, num_class)
         )
 

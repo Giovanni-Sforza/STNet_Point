@@ -452,6 +452,115 @@ class VotingPairedDataset(Dataset):
         }
     
 
+
+# 我们仍然需要一个可靠的原始类别解析器
+def parse_original_class_from_filename(filename: str) -> int:
+    """Parses the original integer label from a filename like '...-14_...npy' -> 14."""
+    name_without_ext = os.path.splitext(filename)[0]
+    match = re.search(r'-(\d+)_', name_without_ext)
+    if match:
+        return int(match.group(1))
+    raise ValueError(f"Filename {filename} does not match expected format for class parsing.")
+
+class MultiSamplePairedDataset(Dataset):
+    """
+    A Dataset for validation that mimics the training pairing strategy.
+    
+    Instead of 'voting', this dataset creates multiple random pairs for evaluation.
+    For each sample in source1, it is paired with `num_samples_per_s1` 
+    randomly chosen samples from the corresponding class in source2.
+    
+    The total size of the dataset will be len(source1_files) * num_samples_per_s1.
+    """
+    def __init__(self,
+                 root_dir_source1: str,
+                 root_dir_source2: str,
+                 split_file_source1: str,
+                 split_file_source2: str,
+                 num_samples_per_s1: int = 1, # Renamed from num_votes for clarity
+                 seed: int = 42):
+        
+        self.root_dir_s1 = root_dir_source1
+        self.root_dir_s2 = root_dir_source2
+        self.num_samples_per_s1 = num_samples_per_s1
+        
+        if seed is not None:
+            random.seed(seed)
+
+        # 1. Load source1 files.
+        with open(split_file_source1, 'r') as f:
+            s1_files = [line.strip() for line in f if line.strip()]
+
+        # 2. Load and group source2 files by their original class label.
+        s2_files_by_class = self._group_files_by_class(split_file_source2)
+
+        # 3. Create all pairs in advance. This is the core logic.
+        self.all_pairs = []
+        logging.info(f"Creating evaluation pairs. Each of the {len(s1_files)} source1 samples will be paired {num_samples_per_s1} time(s).")
+
+        for s1_fname in s1_files:
+            try:
+                s1_class = parse_original_class_from_filename(s1_fname)
+                target_s2_class = s1_class + 13
+                
+                # Get the pool of corresponding s2 files
+                candidate_partners = s2_files_by_class.get(target_s2_class, [])
+                
+                if not candidate_partners:
+                    logging.warning(f"No partners in source2 found for s1 file {s1_fname} (class {s1_class}, target class {target_s2_class}). Skipping.")
+                    continue
+
+                # For each s1 file, sample `num_samples_per_s1` partners from s2
+                # `replace=True` allows a partner to be chosen more than once if num_samples > len(partners)
+                num_to_sample = self.num_samples_per_s1
+                sampled_s2_fnames = random.choices(candidate_partners, k=num_to_sample)
+                
+                # The base class label for the model (0-indexed)
+                # Assumes 13 classes per system, so 1->0, 14->0
+                base_class_label = (s1_class - 1) % 13
+
+                for s2_fname in sampled_s2_fnames:
+                    self.all_pairs.append((s1_fname, s2_fname, base_class_label))
+
+            except ValueError as e:
+                logging.warning(f"Skipping file {s1_fname} due to parsing error: {e}")
+
+        logging.info(f"MultiSamplePairedDataset initialized. Created a total of {len(self.all_pairs)} pairs for evaluation.")
+
+    def _group_files_by_class(self, split_file):
+        files_by_class = defaultdict(list)
+        with open(split_file, 'r') as f:
+            filenames = [line.strip() for line in f if line.strip()]
+        for fname in filenames:
+            try:
+                class_label = parse_original_class_from_filename(fname)
+                # No path check here, assume paths are correct
+                files_by_class[class_label].append(fname)
+            except ValueError as e:
+                logging.warning(f"Skipping file {fname} in source2 due to parsing error: {e}")
+        return files_by_class
+
+    def __len__(self):
+        return len(self.all_pairs)
+
+    def __getitem__(self, idx):
+        s1_fname, s2_fname, label = self.all_pairs[idx]
+        
+        # Load data from files
+        s1_path = os.path.join(self.root_dir_s1, s1_fname)
+        s2_path = os.path.join(self.root_dir_s2, s2_fname)
+        
+        event1_data = np.load(s1_path)
+        event2_data = np.load(s2_path)
+
+        # This structure now perfectly matches your training dataset's output
+        return {
+            'event1': torch.from_numpy(event1_data).float(),
+            'event2': torch.from_numpy(event2_data).float(),
+            'class_label1': torch.tensor(label, dtype=torch.long),
+            'class_label2': torch.tensor(label, dtype=torch.long)
+        }
+    
 class EpochShuffledPairedDataset(Dataset):
     """
     A PyTorch Dataset that implements the epoch-based shuffling and pairing strategy.
