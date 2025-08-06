@@ -3,6 +3,9 @@
 ./STNet_d*/
 ./STNet_part*/
 ./finetunin*/
+experiments
+*.pyc
+./extensions
 contra_data*
 training_output**
 *.txt
