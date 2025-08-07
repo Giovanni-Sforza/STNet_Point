@@ -76,7 +76,8 @@ class SelfAttentionPooling(nn.Module):
         return pooled_features
 
 class PointPoolingClassifier(nn.Module):
-    def __init__(self, num_classes: int, output_dim: int = 512, input_feature_dim: int = 3, num_events: int = 32, feature_out=False):
+    def __init__(self, num_classes: int, output_dim: int = 512, input_feature_dim: int = 3, num_events: int = 32, feature_out=False,
+            transformer_layers: int = 4, transformer_heads: int = 8):
         super(PointPoolingClassifier, self).__init__()
         self.output_dim = output_dim
         self.input_feature_dim = input_feature_dim
@@ -93,8 +94,24 @@ class PointPoolingClassifier(nn.Module):
         # pooling 操作在 forward 中通过 torch.mean 实现，这里无需定义
         
         self.attention_pooling = SelfAttentionPooling(input_dim=self.output_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=self.output_dim, # 必须与 PointNet 的输出维度一致
+            nhead=transformer_heads,   # 多头注意力的头数
+            dim_feedforward=self.output_dim * 4, # 前馈网络的隐藏层维度，通常是 d_model 的4倍
+            dropout=0.1
+        )
+        
+        # 将多个 encoder_layer 堆叠起来
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer, 
+            num_layers=transformer_layers
+        )
         # 分类头，对池化后的特征进行分类
-        pooled_feature_dim = self.output_dim #* 2
+        pooled_feature_dim = self.output_dim * 3
+        self.post_transformer_norm = nn.LayerNorm(self.output_dim)
+        self.final_norm = nn.LayerNorm(pooled_feature_dim) 
+
+
         self.classifier = nn.Sequential(
             nn.Linear(pooled_feature_dim, 256, bias=False), # 增大了第一层的宽度
             nn.BatchNorm1d(256),
@@ -152,16 +169,18 @@ class PointPoolingClassifier(nn.Module):
         # --- Mean Pooling ---
         # 沿着事件维度（dim=1）进行平均池化
         # pooled_features shape: [B, output_dim]
-        #pooled_features = torch.mean(stacked_features, dim=1)
-        """mean_features = torch.mean(stacked_features, dim=1)
+        mean_features = torch.mean(stacked_features, dim=1)
         
         # 2. 计算标准差 (二阶矩)
         std_features = torch.std(stacked_features, dim=1)
         
         # 3. 将均值和标准差特征拼接在一起
         #    shape: [B, D] + [B, D] -> [B, 2*D]
-        pooled_features = torch.cat([mean_features, std_features], dim=1)"""
-        pooled_features = self.attention_pooling(stacked_features)
+        
+        transformer_output = self.transformer_encoder(stacked_features)
+        transformer_output_norm = self.post_transformer_norm(transformer_output) 
+        pooled_features_transformer = self.attention_pooling(transformer_output_norm)
+        pooled_features = torch.cat([mean_features, std_features,pooled_features_transformer], dim=1)
         # 将池化后的特征送入分类器
         logits = self.classifier(pooled_features)
         
@@ -179,7 +198,9 @@ def create_model(config):
             num_events = config.get("num_events",32),
             output_dim=config.get('output_dim', 512),
             num_classes=config.get('num_classes', 5),
-            feature_out=config.get('feature_out', False)
+            feature_out=config.get('feature_out', False),
+            transformer_layers = config.get("transformer_layers",3),
+            transformer_heads = config.get("transformer_heads",4)
         )
     return model
 

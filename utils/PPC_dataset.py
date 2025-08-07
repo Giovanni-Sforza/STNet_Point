@@ -154,16 +154,16 @@ class EventClusterDataset(Dataset):
         return len(self.clusters)
 
 
-    """@staticmethod
-    def _transfer(cor):
-        x = cor[:,0]/2
-        y = cor[:,1]/2
-        z = cor[:,2]/200
-        points = cor[:,5:8]
-        a_cartesian_points = torch.stack([x, y, z], dim=-1)
-        return a_cartesian_points,points"""
-
     @staticmethod
+    def _transfer(cor):
+        """x = (cor[:,0])/0.54
+        y = (cor[:,1])/0.55
+        z = (cor[:,2])/0.48"""
+        points = cor[:,5:8]
+        a_cartesian_points =  cor[:,0:3]/0.5#torch.stack([x, y, z], dim=-1)
+        return a_cartesian_points,points
+
+    """@staticmethod
     def _transfer(cor):
         r = cor[:,0]
         phi = cor[:, 1]
@@ -181,7 +181,7 @@ class EventClusterDataset(Dataset):
         # a_cartesian_points 的 shape 也是 (N, 3)
         a_cartesian_points = torch.stack([x, y, z], dim=-1)
         points = torch.stack([r,phi,z],dim=-1)
-        return a_cartesian_points,points
+        return a_cartesian_points,points"""
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         """

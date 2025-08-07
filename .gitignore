@@ -6,6 +6,8 @@
 experiments
 *.pyc
 ./extensions
+experiments_5class
+ml_new2
 contra_data*
 training_output**
 *.txt
