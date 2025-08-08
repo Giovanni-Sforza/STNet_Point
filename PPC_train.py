@@ -15,7 +15,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 
 # --- Import your custom modules ---
 from utils.PPC_dataset import EventClusterDataset
-from model.PPC import create_model
+from model.PPC_tonly import create_model
 
 class Trainer:
     def __init__(self, config: DictConfig):

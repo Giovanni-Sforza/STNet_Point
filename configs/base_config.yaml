@@ -1,29 +1,29 @@
 # configs/base_config.yaml
 
 # --- General experiment settings ---
-exp_name: "Ru_mvt_norm"
-output_dir: "./experiments_5class"  # Main directory to save logs, checkpoints, etc.
+exp_name: "Ru_tonly"
+output_dir: "./experiments"  # Main directory to save logs, checkpoints, etc.
 
 # --- Data settings ---
 data:
-  train_list: "ml_new2/ml_preprocessed_data_5class_new2/fine_train_Ru.txt"
-  val_list: "ml_new2/ml_preprocessed_data_5class_new2/fine_test_Ru.txt"
-  data_dir: "ml_new2/ml_preprocessed_data_5class_new2/method_3"
+  train_list:  "contra_data_clean_noipad/fine_train_Ru copy.txt"
+  val_list: "contra_data_clean_noipad/fine_test_Ru copy.txt"
+  data_dir: "contra_data_clean_noipad/data_view1"
   num_events: 128
   num_workers: 4 # Number of threads for data loading
   # A list of class names for confusion matrix labels
-  class_names: ["1","2","3","4","5"] #["w/o","beta2","NS+beata2","beta2+beta3","NS+beta3"] 
+  class_names: ["1","2","3","4"] #["w/o","beta2","NS+beata2","beta2+beta3","NS+beta3"] 
 
 # --- Model settings (passed to create_model) ---
 model:
   model_name: 'PPC'
   input_feature_dim: 3
   output_dim: 512
-  num_classes: 5
+  num_classes: 4
   feature_out: false
   transformer_layers: 6
   transformer_heads: 8
-  pretrained_path: null #"/home/qiuyu/SPT/experiments/PPC_Ru_test1_20250806-220852/ckpt_latest.pth" #null
+  pretrained_path: "experiments/Ru_tonly_20250808-122328/ckpt_epoch_59.pth" #"/home/qiuyu/SPT/experiments/PPC_Ru_test1_20250806-220852/ckpt_latest.pth" #null
 # --- Training settings ---
 train:
   batch_size: 16
@@ -32,7 +32,7 @@ train:
   optimizer:
     type: "AdamW"
     lr: 0.0001
-    weight_decay: 0.01
+    weight_decay: 0.001
   # Learning rate scheduler
   scheduler:
     type: "CosineAnnealingLR"

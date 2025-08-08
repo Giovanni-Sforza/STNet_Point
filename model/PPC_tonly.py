@@ -93,7 +93,7 @@ class PointPoolingClassifier(nn.Module):
         self.pointnet_backends = PointNet(output_dim=self.output_dim, input_feature_dim=self.input_feature_dim)
         # pooling 操作在 forward 中通过 torch.mean 实现，这里无需定义
         
-        """self.attention_pooling = SelfAttentionPooling(input_dim=self.output_dim)
+        self.attention_pooling = SelfAttentionPooling(input_dim=self.output_dim)
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=self.output_dim, # 必须与 PointNet 的输出维度一致
             nhead=transformer_heads,   # 多头注意力的头数
@@ -107,13 +107,13 @@ class PointPoolingClassifier(nn.Module):
             num_layers=transformer_layers
         )
         # 分类头，对池化后的特征进行分类
-        pooled_feature_dim = self.output_dim * 3
+        pooled_feature_dim = self.output_dim 
         self.post_transformer_norm = nn.LayerNorm(self.output_dim)
-        self.final_norm = nn.LayerNorm(pooled_feature_dim) """
+        self.final_norm = nn.LayerNorm(pooled_feature_dim)
 
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.output_dim*2, 256, bias=False), # 增大了第一层的宽度
+            nn.Linear(self.output_dim, 256, bias=False), # 增大了第一层的宽度
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.5), # 增加了Dropout率，因为分类器可能更容易过拟合
@@ -160,33 +160,26 @@ class PointPoolingClassifier(nn.Module):
             h_i = self.pointnet_backends(xyz_i, feat_i)
             # 去掉最后一个维度，变为 [B, output_dim]
             h_i_squeezed = h_i.squeeze(-1)
+            #print("event_features",i,h_i_squeezed.shape)
             event_features.append(h_i_squeezed)
             
+        
         # 将特征列表堆叠成一个张量
         # stacked_features shape: [B, E, output_dim]
         stacked_features = torch.stack(event_features, dim=1)
+        #print("stacked_features: ", stacked_features.shape)
         
-        # --- Mean Pooling ---
-        # 沿着事件维度（dim=1）进行平均池化
-        # pooled_features shape: [B, output_dim]
-        mean_features = torch.mean(stacked_features, dim=1)
-        
-        # 2. 计算标准差 (二阶矩)
-        std_features = torch.std(stacked_features, dim=1)
-        
-        # 3. 将均值和标准差特征拼接在一起
-        #    shape: [B, D] + [B, D] -> [B, 2*D]
-        
-        #transformer_output = self.transformer_encoder(stacked_features)
-        #transformer_output_norm = self.post_transformer_norm(transformer_output) 
-        #pooled_features_transformer = self.attention_pooling(transformer_output_norm)
-        pooled_features = torch.cat([mean_features, std_features], dim=1)
+        # trnasformer requirs: [E,B,D]
+        transformer_output = self.transformer_encoder(stacked_features.permute(1,0,2).contiguous())
+        transformer_output_norm = self.post_transformer_norm(transformer_output) 
+        pooled_features_transformer = self.attention_pooling(transformer_output_norm.permute(1,0,2).contiguous())
+        #pooled_features = torch.cat([mean_features, std_features], dim=1)
         # 将池化后的特征送入分类器
         #pooled_features = mean_features
-        logits = self.classifier(pooled_features)
+        logits = self.classifier(pooled_features_transformer)
         
         if self.feature_out:
-            return logits, pooled_features
+            return logits, pooled_features_transformer
         else:
             return logits
 
@@ -209,7 +202,7 @@ def create_model(config):
 if __name__ == '__main__':
     # --- 模型超参数 ---
     BATCH_SIZE = 4       # 一次处理4个事件簇
-    NUM_EVENTS = 32      # 每个簇包含32个事件
+    NUM_EVENTS = 344      # 每个簇包含32个事件
     NUM_POINTS = 1024    # 每个事件有1024个粒子
     INPUT_DIM = 3        # 每个粒子的输入特征是三维动量 (px, py, pz)
     OUTPUT_DIM = 512     # PointNet输出的特征维度

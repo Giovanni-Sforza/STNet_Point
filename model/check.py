@@ -1,7 +1,7 @@
 import torch
 
 # 替换为您的 .pth 文件路径
-file_path = 'experiments/PPC_Ru_test1_20250806-220852/ckpt_latest.pth'
+file_path = 'experiments/Ru_Transformer_20250807-011354/spt_best_acc.pth'
 
 try:
     # 加载模型的状态字典
