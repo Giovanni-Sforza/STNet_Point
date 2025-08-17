@@ -16,7 +16,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 # --- Import your custom modules ---
 from utils.PPC_dataset import EventClusterDataset
 #from model.PPC_tonly import create_model
-from model.PPC_ST import create_model
+from model import create_model
 class Trainer:
     def __init__(self, config: DictConfig):
         self.config = config
@@ -350,7 +350,7 @@ class Trainer:
         self.logger.info("Training finished!")
 
 def main():
-    config_path = "./configs/PPCST_config.yaml"
+    config_path = "./configs/PPCST_config5.yaml"
     config = OmegaConf.load(config_path)
     
     cli_conf = OmegaConf.from_cli()

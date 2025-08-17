@@ -1,0 +1,49 @@
+# configs/base_config.yaml
+
+# --- General experiment settings ---
+exp_name: "STT_ln"
+output_dir: "./experiments_PPCST_Zr_5class"  # Main directory to save logs, checkpoints, etc.
+
+# --- Data settings ---
+data:
+  train_list: "ml_new2/ml_preprocessed_data_5class_new2/fine_train_Zr.txt" #"contra_data_clean_noipad/fine_train_Zr copy.txt"
+  val_list: "ml_new2/ml_preprocessed_data_5class_new2/fine_test_Zr.txt" #"contra_data_clean_noipad/fine_test_Zr copy.txt"
+  data_dir: "ml_new2/ml_preprocessed_data_5class_new2/method_3" #"contra_data_clean_noipad/data_view1"
+  num_events: 128
+  num_workers: 4 # Number of threads for data loading
+  # A list of class names for confusion matrix labels
+  class_names: ["1","2","3","4","5"] #["w/o","beta2","NS+beata2","beta2+beta3","NS+beta3"] 
+  case: 1
+# --- Model settings (passed to create_model) ---
+model:
+  model_name: 'PPC_ST'
+  input_feature_dim: 3
+  output_dim: 512
+  num_classes: 5
+  feature_out: false
+  pretrained_path: null #"experiments_Zr/Zr_tonly_wopool_12T_20250809-173041/ckpt_latest.pth" #"/home/qiuyu/SPT/experiments/PPC_Ru_test1_20250806-220852/ckpt_latest.pth" #null
+# --- Training settings ---
+train:
+  batch_size: 8
+  max_epochs: 300
+  # Optimizer
+  optimizer:
+    type: "AdamW"
+    lr: 0.0001
+    weight_decay: 0.0001
+  # Learning rate scheduler
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 300 # Should match max_epochs for the cosine part
+    # Warmup settings
+    use_warmup: true # A switch to easily turn warmup on/off
+    warmup_epochs: 3 # Number of epochs for warmup
+    warmup_start_lr: 1e-7
+  # Checkpointing and validation
+  resume_path: null #'experiments_Zr_5clss/Zr_tonly_wopool_12T8H_4points_smalllr_20250813-212808/ckpt_latest.pth' # Set to a .pth file to resume, e.g., "./experiments/PPC_RuZr.../ckpt_latest.pth"
+  val_every_n_epochs: 30
+  save_every_n_epochs: 30
+validation:
+  # 在每次验证时，对验证集进行多次重新洗牌和评估，以获得更稳定的结果
+  # 设为 1 则与之前行为相同
+  num_runs: 5

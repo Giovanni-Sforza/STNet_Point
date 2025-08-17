@@ -1,8 +1,8 @@
-from PPC import PointPoolingClassifier as PPC
-from PPC_tonly4 import PointPoolingClassifier as PPC_Tonly4
-from PPC_ST import PointPoolingClassifier as PPC_ST
-from STDT import STDT
-from STNet_point2 import STNet_Point_Classifier_Advanced as STNet_Point
+from .PPC import PointPoolingClassifier as PPC
+from .PPC_tonly4 import PointPoolingClassifier as PPC_Tonly4
+from .PPC_ST import PointPoolingClassifier as PPC_ST
+from .STDT import STDT
+from .STNet_point2 import STNet_Point_Classifier_Advanced as STNet_Point
 
 def create_model(config):
     """ Create model with given config, including coord_dim """
