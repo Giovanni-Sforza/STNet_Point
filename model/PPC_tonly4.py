@@ -19,10 +19,10 @@ class PointNet(nn.Module):
         
         # 解释: 最后一层通常是全局抽象，聚合所有特征。
         #self.sa0 = PointnetSAModule(npoint=512, radius=0.2, nsample=8, mlp=[self.input_feature_dim,  32, 64])
-        self.sa1 = PointnetSAModule(npoint=128, radius=0.25, nsample=8, mlp=[ self.input_feature_dim, 64, 128])
+        self.sa1 = PointnetSAModule(npoint=128, radius=0.25, nsample=4, mlp=[ self.input_feature_dim, 64, 128])
         # 估算: r=0.4的球体积约0.268。期望点数 = 0.268 * 215 ≈ 57个。这下足够nsample=32了。
-        #self.sa2 = PointnetSAModule(npoint=32, radius=0.4, nsample=8, mlp=[128, 128, 256])
-        self.sa3 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[128, 256, self.output_dim])
+        self.sa2 = PointnetSAModule(npoint=32, radius=0.4, nsample=4, mlp=[128, 128, 256])
+        self.sa3 = PointnetSAModule(npoint=None, radius=None, nsample=None, mlp=[256, 256, self.output_dim])
 
     def forward(self,xyz_A,feat_A):
         """
@@ -34,7 +34,8 @@ class PointNet(nn.Module):
         l2_xyz_A, l2_feat_A = self.sa2(l1_xyz_A, l1_feat_A)
         l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)"""
         l0_xyz_A, l0_feat_A = self.sa1(xyz_A, feat_A)
-        l3_xyz_A, l3_feat_A = self.sa3(l0_xyz_A, l0_feat_A)
+        l2_xyz_A, l2_feat_A = self.sa2(l0_xyz_A, l0_feat_A)
+        l3_xyz_A, l3_feat_A = self.sa3(l2_xyz_A, l2_feat_A)
         return l3_feat_A
 
 class SelfAttentionPooling(nn.Module):

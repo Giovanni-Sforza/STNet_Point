@@ -19,7 +19,7 @@ class EventClusterDataset(Dataset):
         cluster_size (int): 每个事件簇中包含的事件数量。
         preload (bool): 是否将所有数据预加载到内存中。对于大型数据集，建议设为False。
     """
-    def __init__(self, data_dir: str, file_list_path: str, cluster_size: int, preload: bool = False, case: int = 1):
+    def __init__(self, data_dir: str, file_list_path: str, cluster_size: int, preload: bool = False,case: int = 1):
         super().__init__()
         self.data_dir = data_dir
         self.cluster_size = cluster_size
@@ -45,9 +45,11 @@ class EventClusterDataset(Dataset):
         print("Creating initial clusters for the first epoch...")
         self.shuffle_and_recluster()
         print(f"Dataset initialized. Found {len(self)} clusters.")
-        if case==1:
+
+        # 4. 为不同的数据集创建不同的数据初始化函数
+        if case == 1:
             self._transfer = self._transfer1
-        elif case ==2:
+        elif case == 2:
             self._transfer = self._transfer2
 
 
@@ -172,7 +174,7 @@ class EventClusterDataset(Dataset):
         r = cor[:,0]
         phi = cor[:, 1]
         eta = cor[:, 2]#/1.7
-        
+
         x = r * torch.cos(phi)#/0.16
         y = r * torch.sin(phi)#/0.16
         z = r*torch.sinh(eta)
@@ -184,7 +186,7 @@ class EventClusterDataset(Dataset):
         # 3. 组装成笛卡尔坐标点云
         # a_cartesian_points 的 shape 也是 (N, 3)
         a_cartesian_points = torch.stack([x, y, z], dim=1)
-        points = cor[:,0:3] #torch.stack([r,phi,eta],dim=1) #
+        points = cor[:,0:3]
         return a_cartesian_points,points
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
@@ -196,16 +198,14 @@ class EventClusterDataset(Dataset):
 
         Returns:
             A tuple: `((xyz_cluster, feat_cluster), label)`
-            - xyz_cluster (torch.Tensor): 簇内所有事件的坐标数据。
-                                          Shape: [E, N, 3], E=cluster_size
-            - feat_cluster (torch.Tensor): 簇内所有事件的特征数据。
-                                           Shape: [E, 3, N]
+            - output (torch.Tensor): 簇内所有事件的坐标数据。
+                                          Shape: [E, N, features], E=cluster_size
             - label (torch.Tensor): 该簇的类别标签。
         """
         cluster_filenames, label = self.clusters[idx]
         
-        xyz_data = []
-        features_data = []
+        data_list = []
+
         
         for filename in cluster_filenames:
             # 从缓存或磁盘加载数据
@@ -221,22 +221,20 @@ class EventClusterDataset(Dataset):
             
             event_tensor = torch.from_numpy(event_data).float()
             xyz, points = self._transfer(event_tensor)
-            features = points.t()
             # xyz: [N, 3]
-            #xyz =  torch.from_numpy(xyz_npy)
-            # features: [3, N] (PointNet++ 通常需要通道在前的格式)
-            #features = points_npy.from_numpy(xyz_npy).t()
+            data = torch.cat([xyz,points],dim=-1)
+
+            data_list.append(data)
             
-            xyz_data.append(xyz)
-            features_data.append(features)
+
         
         # 使用 torch.stack 将事件列表组合成一个簇张量
-        xyz_cluster = torch.stack(xyz_data, dim=0)
-        feat_cluster = torch.stack(features_data, dim=0)
+        output = torch.stack(data_list, dim=0)
+
         #print(xyz_cluster.shape)
         #print(feat_cluster.shape)
         # 返回数据和标签
-        return (xyz_cluster, feat_cluster), torch.tensor(label, dtype=torch.long)
+        return output, torch.tensor(label, dtype=torch.long)
 
 
 # --- 使用示例和测试 ---

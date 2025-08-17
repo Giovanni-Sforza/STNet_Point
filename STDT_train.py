@@ -14,9 +14,9 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, accuracy_score
 
 # --- Import your custom modules ---
-from utils.PPC_dataset import EventClusterDataset
+from utils.STDT_dataset import EventClusterDataset
 #from model.PPC_tonly import create_model
-from model.PPC_ST import create_model
+from model.STDT import create_model
 class Trainer:
     def __init__(self, config: DictConfig):
         self.config = config
@@ -199,12 +199,12 @@ class Trainer:
         # 注意：为了简化，我将pbar的显示移到了循环外
         pbar = tqdm(self.train_loader, desc=f"Epoch {epoch}/{self.config.train.max_epochs} [Training]")
         
-        for i, ((xyz, feat), labels) in enumerate(pbar):
-            xyz, feat, labels = xyz.to(self.device), feat.to(self.device), labels.to(self.device)
+        for i, (data, labels) in enumerate(pbar):
+            data, labels = data.to(self.device), labels.to(self.device)
             
             self.optimizer.zero_grad()
-            #print(xyz.shape,feat.shape)
-            logits = self.model(xyz, feat)
+            #feat = feat.permute(0,1,3,2).contiguous()
+            logits = self.model(data)
             loss = self.criterion(logits, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -263,9 +263,9 @@ class Trainer:
                 current_run_labels = []
                 total_val_loss = 0.0 # --- 新增代码: 初始化单次运行的总损失 ---
 
-                for (xyz, feat), labels in pbar:
-                    xyz, feat, labels = xyz.to(self.device), feat.to(self.device), labels.to(self.device)
-                    logits = self.model(xyz, feat)
+                for data, labels in pbar:
+                    data, labels = data.to(self.device), labels.to(self.device)
+                    logits = self.model(data)
                     
                     # --- 新增代码: 计算并累加损失 ---
                     loss = self.criterion(logits, labels)
@@ -350,7 +350,7 @@ class Trainer:
         self.logger.info("Training finished!")
 
 def main():
-    config_path = "./configs/PPCST_config.yaml"
+    config_path = "./configs/STDT_config.yaml"
     config = OmegaConf.load(config_path)
     
     cli_conf = OmegaConf.from_cli()

@@ -4,6 +4,9 @@
 ./STNet_part*/
 ./finetunin*/
 experiments
+experiments_Zr
+experiments_STNet
+experiments*
 *.pyc
 ./extensions
 experiments_5class
